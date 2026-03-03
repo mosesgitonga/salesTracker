@@ -186,22 +186,22 @@ Only amounts ending in .18 are extracted:
     </div>
     <pre>function doPost(e) {
   try {
-    var data   = JSON.parse(e.postData.contents);
-    var ss     = SpreadsheetApp.openById(data.sheetId);
-    var sheets = ss.getSheets();
-    var sheet  = null;
+    var data = JSON.parse(e.postData.contents);
+    var ss   = SpreadsheetApp.openById(data.sheetId);
 
-    for (var i = 0; i < sheets.length; i++) {
-      if (String(sheets[i].getSheetId()) === String(data.gid)) {
-        sheet = sheets[i];
+    var sheet = null;
+    for (var i = 0; i < ss.getSheets().length; i++) {
+      if (String(ss.getSheets()[i].getSheetId()) === String(data.gid)) {
+        sheet = ss.getSheets()[i];
         break;
       }
     }
 
     if (!sheet) {
-      return respond({status: 'error', message: 'No tab found with gid ' + data.gid});
+      return buildResponse({status: 'error', message: 'No tab found with gid ' + data.gid});
     }
 
+    // Ensure header exists
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         'DATE','USERNAME','FORM OF PAYMENT',
@@ -209,25 +209,46 @@ Only amounts ending in .18 are extracted:
       ]);
     }
 
+    // Find the true last non-empty row by scanning all values
+    var allValues = sheet.getDataRange().getValues();
+    var lastNonEmpty = 0;
+    for (var r = 0; r < allValues.length; r++) {
+      var rowIsEmpty = allValues[r].every(function(cell) {
+        return cell === '' || cell === null;
+      });
+      if (!rowIsEmpty) lastNonEmpty = r + 1; // 1-based
+    }
+
+    // Skip 3 blank rows after the last non-empty row, then write
+    var startRow = lastNonEmpty + 3 + 1; // +3 gap, +1 to land on next write row
+    var addedCount = 0;
+
     data.rows.forEach(function(r) {
-      sheet.appendRow([
+      var rowData = [
         r.date, r.username, r.payment,
         r.gross, r.net, r.commission, r.notes
-      ]);
+      ];
+      sheet.getRange(startRow + addedCount, 1, 1, rowData.length).setValues([rowData]);
+      addedCount++;
     });
 
-    return respond({status: 'ok', added: data.rows.length, tabName: sheet.getName()});
+    return buildResponse({
+      status: 'ok',
+      added: addedCount,
+      startedAtRow: startRow,
+      tabName: sheet.getName()
+    });
 
-  } catch(err) {
-    return respond({status: 'error', message: err.toString()});
+  } catch (err) {
+    return buildResponse({status: 'error', message: err.toString()});
   }
 }
 
 function doGet(e) {
-  return respond({status: 'ok', message: 'Script is live'});
+  return buildResponse({status: 'ok', message: 'Script is live'});
 }
 
-function respond(obj) {
+function buildResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -247,6 +268,7 @@ function respond(obj) {
 
 <script>
 var rows = [];
+var parsedCreator = ''; // snapshot of creator captured at parse time
 
 // ── URL parsing ───────────────────────────────────────────────────────────────
 function getUrlParts() {
