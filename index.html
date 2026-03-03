@@ -269,8 +269,10 @@ function doGet(e) {
       }
       if (!sheet) return respond({status:'error', message:'No tab found with gid '+gid});
       var totals = recalcTotals(sheet);
-      return respond({status:'ok', totalCommission:totals.commission,
-        totalNet:totals.net, tabName:sheet.getName()});
+      return respond({status:'ok',
+        totalCommission: Number(totals.commission),
+        totalNet: Number(totals.net),
+        tabName: sheet.getName()});
     }
 
     return respond({status:'ok', message:'Script is live'});
@@ -352,8 +354,10 @@ function doRecalc() {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.status === 'ok') {
-      document.getElementById('recalcNet').textContent  = '$' + data.totalNet.toFixed(2);
-      document.getElementById('recalcComm').textContent = '$' + data.totalCommission.toFixed(2);
+      var net  = parseFloat(String(data.totalNet).replace('$','').trim());
+      var comm = parseFloat(String(data.totalCommission).replace('$','').trim());
+      document.getElementById('recalcNet').textContent  = '$' + (isNaN(net)  ? '0.00' : net.toFixed(2));
+      document.getElementById('recalcComm').textContent = '$' + (isNaN(comm) ? '0.00' : comm.toFixed(2));
       document.getElementById('recalcDisplay').style.display = 'block';
       showMsg('recalcMsg','ok','✓ Totals recalculated from sheet and H3/I3 updated.');
     } else {
