@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d0d14;--card:#13131f;--border:#1f1f30;--accent:#b967ff;--green:#3dffaa;--pink:#ff6b9d;--text:#e6e6f0;--muted:#55556e}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:36px 20px 80px}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 55% at 5% 0%,rgba(185,103,255,.08) 0%,transparent 55%),radial-gradient(ellipse 55% 45% at 95% 100%,rgba(61,255,170,.05) 0%,transparent 55%)}
+.wrap{max-width:960px;margin:0 auto;position:relative;z-index:1}
+h1{font-size:24px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(130deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:32px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px}
+.clabel{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+label{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:14px}
+label:first-of-type{margin-top:0}
+input,textarea{width:100%;background:#0a0a12;border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:10px 14px;outline:none;transition:border-color .15s,box-shadow .15s;resize:vertical}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(185,103,255,.1)}
+textarea{min-height:200px;line-height:1.7}
+.hint{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:580px){.g2{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#8020ee);color:#fff;box-shadow:0 4px 16px rgba(185,103,255,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(185,103,255,.42)}
+.btn-green{background:linear-gradient(135deg,var(--green),#00b87a);color:#08080f;font-weight:800;box-shadow:0 4px 16px rgba(61,255,170,.2)}
+.btn-green:hover{transform:translateY(-1px)}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.3;cursor:not-allowed;transform:none!important}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.alert{border-radius:8px;padding:11px 15px;font-family:'DM Mono',monospace;font-size:11px;margin-top:12px;line-height:1.6;animation:fi .2s ease}
+@keyframes fi{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.a-ok{background:rgba(61,255,170,.07);border:1px solid rgba(61,255,170,.22);color:var(--green)}
+.a-err{background:rgba(255,107,157,.07);border:1px solid rgba(255,107,157,.22);color:var(--pink)}
+.a-inf{background:rgba(185,103,255,.07);border:1px solid rgba(185,103,255,.22);color:var(--accent)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;text-align:center}
+.sc .big{font-size:21px;font-weight:800;font-family:'DM Mono',monospace}
+.sc .lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px}
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px}
+thead tr{background:rgba(185,103,255,.08);border-bottom:1px solid var(--border)}
+th{padding:11px 14px;text-align:left;color:var(--muted);font-weight:500;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid rgba(31,31,48,.9);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(185,103,255,.03)}
+.cv{color:var(--accent)}
+.cg{color:var(--green)}
+.cp{color:var(--pink)}
+.tag{background:rgba(185,103,255,.13);color:var(--accent);border-radius:5px;padding:2px 8px;font-size:10px}
+.skip-tag{background:rgba(255,107,157,.1);color:var(--pink);border-radius:5px;padding:2px 7px;font-size:10px}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+details{margin-top:10px}
+details summary{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;list-style:none;user-select:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:'▶ ';font-size:9px}
+details[open] summary::before{content:'▼ '}
+.skip-list{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:2;margin-top:8px}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}
+#modal.show{display:flex}
+.modal-box{background:#13131f;border:1px solid #2c2c42;border-radius:16px;padding:28px;max-width:660px;width:90%;max-height:82vh;overflow-y:auto}
+.modal-box h2{font-size:17px;font-weight:800;margin-bottom:8px}
+.modal-box .steps{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:2;margin-bottom:14px}
+.modal-box pre{background:#0a0a12;border:1px solid var(--border);border-radius:9px;padding:14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);overflow-x:auto;line-height:1.7;white-space:pre}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>SalesSync</h1>
+  <div class="sub">Message Purchase Tracker · .18 amounts only</div>
+
+  <!-- Step 1: Connection -->
+  <div class="card">
+    <div class="clabel">Step 1 — Google Sheets Connection</div>
+    <div class="g2">
+      <div>
+        <label>Full Google Sheet URL (with gid)</label>
+        <input id="sheetUrl" type="text" placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=123456789" oninput="onUrlInput()" />
+        <div class="hint">Navigate to the exact tab you want, then copy the URL from your browser. The gid at the end identifies the tab.</div>
+        <div id="urlParsed"></div>
+      </div>
+      <div>
+        <label>Apps Script Web App URL</label>
+        <input id="appsUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+        <div class="hint"><a href="#" onclick="openModal(); return false;" style="color:var(--accent);text-decoration:none">▸ How to get this URL</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Creator + raw data -->
+  <div class="card">
+    <div class="clabel">Step 2 — Creator & Data</div>
+    <div class="g2">
+      <div>
+        <label>Creator / Page Name</label>
+        <input id="creator" type="text" placeholder="e.g. mila" />
+        <div class="hint">Saved in the NOTES column on each row.</div>
+      </div>
+    </div>
+    <label style="margin-top:16px">Paste Raw Notification Data</label>
+    <textarea id="raw" placeholder="Paste your raw notification text here.
+
+Only amounts ending in .18 are extracted:
+  ✓  $10.18, $15.18, $25.18, $40.18
+  ✗  $10.00, $15.00, $7.85, $40.53"></textarea>
+    <div class="btns">
+      <button class="btn btn-primary" onclick="doParse()">⚡ Parse</button>
+      <button class="btn btn-ghost" onclick="doClear()">Clear</button>
+    </div>
+    <div id="parseMsg"></div>
+  </div>
+
+  <!-- Step 3: Results -->
+  <div id="results" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div class="card">
+      <div class="clabel">Step 3 — Review & Push</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px">
+        Rows to push &nbsp;<span id="badge" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);background:rgba(185,103,255,.12);padding:2px 10px;border-radius:5px"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Username</th>
+              <th>Form of Payment</th>
+              <th>Gross Price</th>
+              <th>Net Price</th>
+              <th>Commission 20%</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="skipped"></div>
+      <div class="btns">
+        <button class="btn btn-green" id="pushBtn" onclick="doPush()">📤 Push to Google Sheets</button>
+        <button class="btn btn-ghost" onclick="doCopyTSV()">📋 Copy for Sheets</button>
+      </div>
+      <div id="pushMsg"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Apps Script modal -->
+<div id="modal">
+  <div class="modal-box">
+    <h2>Apps Script Setup</h2>
+    <div class="steps">
+      1. Open your Google Sheet<br>
+      2. Click <strong style="color:var(--text)">Extensions → Apps Script</strong><br>
+      3. Delete all existing code and paste the script below<br>
+      4. Click <strong style="color:var(--text)">Deploy → New Deployment → Web App</strong><br>
+      5. Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em><br>
+      6. Copy the Web App URL and paste it into the field above
+    </div>
+    <pre>function doPost(e) {
+  try {
+    var data   = JSON.parse(e.postData.contents);
+    var ss     = SpreadsheetApp.openById(data.sheetId);
+    var sheets = ss.getSheets();
+    var sheet  = null;
+
+    for (var i = 0; i < sheets.length; i++) {
+      if (String(sheets[i].getSheetId()) === String(data.gid)) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+
+    if (!sheet) {
+      return respond({status: 'error', message: 'No tab found with gid ' + data.gid});
+    }
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        'DATE','USERNAME','FORM OF PAYMENT',
+        'GROSS PRICE','NET PRICE','COMMISSION 20%','NOTES'
+      ]);
+    }
+
+    data.rows.forEach(function(r) {
+      sheet.appendRow([
+        r.date, r.username, r.payment,
+        r.gross, r.net, r.commission, r.notes
+      ]);
+    });
+
+    return respond({status: 'ok', added: data.rows.length, tabName: sheet.getName()});
+
+  } catch(err) {
+    return respond({status: 'error', message: err.toString()});
+  }
+}
+
+function doGet(e) {
+  return respond({status: 'ok', message: 'Script is live'});
+}
+
+function respond(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+
+    <div style="margin-top:14px;background:#0a0a12;border:1px solid var(--border);border-radius:9px;padding:14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--text)">⚠ Critical deployment step:</strong><br>
+      After pasting the script, go to <strong style="color:var(--text)">Deploy → Manage Deployments</strong>,<br>
+      click the pencil ✏ icon, change version to <strong style="color:var(--text)">"New version"</strong>, then hit Deploy.<br>
+      If you skip this, the old script keeps running.
+    </div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var rows = [];
+
+// ── URL parsing ───────────────────────────────────────────────────────────────
+function getUrlParts() {
+  var url     = document.getElementById('sheetUrl').value.trim();
+  var idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  var gidMatch = url.match(/[#&?]gid=(\d+)/);
+  return {
+    sheetId: idMatch  ? idMatch[1]  : null,
+    gid:     gidMatch ? gidMatch[1] : null
+  };
+}
+
+function onUrlInput() {
+  var parts = getUrlParts();
+  var el    = document.getElementById('urlParsed');
+  if (parts.sheetId && parts.gid) {
+    el.innerHTML = '<div class="alert a-ok" style="margin-top:8px">✓ Sheet ID found &nbsp;·&nbsp; Tab gid: <strong>' + parts.gid + '</strong></div>';
+  } else if (parts.sheetId && !parts.gid) {
+    el.innerHTML = '<div class="alert a-err" style="margin-top:8px">⚠ No gid in URL — click the exact tab in Sheets first, then copy the URL.</div>';
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+// ── Parse ─────────────────────────────────────────────────────────────────────
+function doParse() {
+  var raw     = document.getElementById('raw').value.trim();
+  var creator = document.getElementById('creator').value.trim();
+
+  if (!raw)     { showMsg('parseMsg', 'err', 'Paste your notification data first.');  return; }
+  if (!creator) { showMsg('parseMsg', 'err', 'Enter the creator / page name first.'); return; }
+
+  rows = [];
+  var skipped = [];
+  var lines   = raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/has purchased your message for \$([0-9]+\.[0-9]{2})!/);
+    if (!m) continue;
+
+    var amountStr = m[1];
+    var cents     = amountStr.split('.')[1];
+
+    if (cents !== '18') {
+      skipped.push({ amount: amountStr, user: findUsername(lines, i) });
+      continue;
+    }
+
+    var gross      = parseFloat(amountStr);
+    var net        = Math.round(gross * 0.80 * 100) / 100;
+    var commission = Math.round(gross * 0.20 * 100) / 100;
+
+    rows.push({
+      date:       findDate(lines, i),
+      username:   findUsername(lines, i),
+      payment:    'Message purchase',
+      gross:      gross,
+      net:        net,
+      commission: commission,
+      notes:      creator
+    });
+  }
+
+  if (!rows.length) {
+    showMsg('parseMsg', 'err',
+      'No .18 purchases found.' +
+      (skipped.length ? ' (' + skipped.length + ' non-.18 purchases skipped)' : '')
+    );
+    return;
+  }
+
+  renderTable(skipped);
+  renderSummary();
+  document.getElementById('badge').textContent = rows.length;
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  showMsg('parseMsg', 'ok',
+    '✓ ' + rows.length + ' qualifying purchase(s) found.' +
+    (skipped.length ? ' ' + skipped.length + ' skipped (non-.18).' : '')
+  );
+}
+
+function findUsername(lines, idx) {
+  for (var j = idx - 1; j >= Math.max(0, idx - 8); j--) {
+    if (/^@u\d+$/.test(lines[j])) {
+      var prev = lines[j - 1];
+      if (prev && !/^@u\d+$/.test(prev) && !/OS\s*-/.test(prev) && !/has purchased/.test(prev)) {
+        return prev;
+      }
+    }
+  }
+  return 'Unknown';
+}
+
+function findDate(lines, idx) {
+  var months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  for (var j = idx + 1; j < Math.min(lines.length, idx + 6); j++) {
+    var m = lines[j].match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2}),\s+(\d{4})/);
+    if (m) {
+      return pad(m[2]) + '/' + pad(months[m[1]]) + '/' + m[3];
+    }
+  }
+  var t = new Date();
+  return pad(t.getDate()) + '/' + pad(t.getMonth() + 1) + '/' + t.getFullYear();
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderTable(skipped) {
+  var html = '';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    html += '<tr>' +
+      '<td>' + r.date + '</td>' +
+      '<td class="cv">' + r.username + '</td>' +
+      '<td>' + r.payment + '</td>' +
+      '<td class="cg">$' + r.gross.toFixed(2) + '</td>' +
+      '<td>$' + r.net.toFixed(2) + '</td>' +
+      '<td class="cp">$' + r.commission.toFixed(2) + '</td>' +
+      '<td><span class="tag">' + r.notes + '</span></td>' +
+      '</tr>';
+  }
+  document.getElementById('tbody').innerHTML = html;
+
+  var sk = document.getElementById('skipped');
+  if (skipped.length) {
+    var skHtml = '<details><summary>Skipped ' + skipped.length + ' non-.18 purchase(s)</summary><div class="skip-list">';
+    for (var k = 0; k < skipped.length; k++) {
+      skHtml += '<span class="skip-tag">$' + skipped[k].amount + '</span> &nbsp;' + skipped[k].user + '<br>';
+    }
+    skHtml += '</div></details>';
+    sk.innerHTML = skHtml;
+  } else {
+    sk.innerHTML = '';
+  }
+}
+
+function renderSummary() {
+  var tg = 0, tn = 0, tc = 0;
+  for (var i = 0; i < rows.length; i++) { tg += rows[i].gross; tn += rows[i].net; tc += rows[i].commission; }
+  document.getElementById('summary').innerHTML =
+    '<div class="sc"><div class="big cg">$' + tn.toFixed(2) + '</div><div class="lbl">Total Net</div></div>' +
+    '<div class="sc"><div class="big">$' + tg.toFixed(2) + '</div><div class="lbl">Total Gross</div></div>' +
+    '<div class="sc"><div class="big cp">$' + tc.toFixed(2) + '</div><div class="lbl">Total Commission</div></div>';
+}
+
+// ── Push ──────────────────────────────────────────────────────────────────────
+function doPush() {
+  var appsUrl = document.getElementById('appsUrl').value.trim();
+  var parts   = getUrlParts();
+  var btn     = document.getElementById('pushBtn');
+
+  if (!parts.sheetId || !parts.gid) { showMsg('pushMsg', 'err', 'Paste a valid Google Sheet URL with a gid first.'); return; }
+  if (!appsUrl)                      { showMsg('pushMsg', 'err', 'Enter your Apps Script Web App URL first.');        return; }
+  if (!rows.length)                  { return; }
+
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spin"></span> Pushing...';
+
+  var payload = {
+    sheetId: parts.sheetId,
+    gid:     parts.gid,
+    rows:    rows.map(function(r) {
+      return {
+        date:       r.date,
+        username:   r.username,
+        payment:    r.payment,
+        gross:      r.gross.toFixed(2),
+        net:        r.net.toFixed(2),
+        commission: r.commission.toFixed(2),
+        notes:      r.notes
+      };
+    })
+  };
+
+  // Use no-cors fetch — Apps Script handles the write, we assume success
+  // (CORS blocks the response but the POST still executes server-side)
+  fetch(appsUrl, {
+    method:  'POST',
+    mode:    'no-cors',
+    body:    JSON.stringify(payload)
+  })
+  .then(function() {
+    showMsg('pushMsg', 'ok', '✓ ' + rows.length + ' row(s) sent to Google Sheets. Check your sheet to confirm.');
+  })
+  .catch(function(e) {
+    showMsg('pushMsg', 'err', 'Request failed: ' + e.message);
+  })
+  .finally(function() {
+    btn.disabled  = false;
+    btn.innerHTML = '📤 Push to Google Sheets';
+  });
+}
+
+// ── Copy TSV ──────────────────────────────────────────────────────────────────
+function doCopyTSV() {
+  var lines = [['DATE','USERNAME','FORM OF PAYMENT','GROSS PRICE','NET PRICE','COMMISSION 20%','NOTES'].join('\t')];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    lines.push([r.date, r.username, r.payment, r.gross.toFixed(2), r.net.toFixed(2), r.commission.toFixed(2), r.notes].join('\t'));
+  }
+  navigator.clipboard.writeText(lines.join('\n')).then(function() {
+    showMsg('pushMsg', 'ok', '✓ Copied! Open Google Sheets and press Ctrl+V / Cmd+V.');
+  });
+}
+
+// ── Clear ─────────────────────────────────────────────────────────────────────
+function doClear() {
+  document.getElementById('raw').value        = '';
+  document.getElementById('parseMsg').innerHTML = '';
+  document.getElementById('results').style.display = 'none';
+  rows = [];
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function showMsg(id, type, text) {
+  var cls = { ok: 'a-ok', err: 'a-err', inf: 'a-inf' };
+  document.getElementById(id).innerHTML = '<div class="alert ' + cls[type] + '">' + text + '</div>';
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal()  { document.getElementById('modal').classList.add('show');    }
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) { closeModal(); }
+});
+</script>
+</body>
+</html>
