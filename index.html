@@ -177,6 +177,23 @@ Only amounts ending in .18 are extracted:
 
 </div>
 
+
+<!-- Creator Confirm Modal -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#13131f;border:1px solid #2c2c42;border-radius:16px;padding:28px;max-width:420px;width:90%">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:14px">Confirm Creator</div>
+    <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">
+      Pushing <span id="confirmRowCount" style="color:var(--text);font-weight:700"></span> row(s) for creator:
+    </div>
+    <input id="confirmCreator" type="text" style="width:100%;background:#0a0a12;border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:10px 14px;outline:none;margin-bottom:6px;box-sizing:border-box" />
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:20px">Edit above if incorrect, then confirm.</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-green" onclick="confirmPush()">✓ Confirm & Push</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal -->
 <div id="modal">
   <div class="modal-box">
@@ -211,6 +228,12 @@ Only amounts ending in .18 are extracted:
 
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['DATE','USERNAME','FORM OF PAYMENT','GROSS PRICE','NET PRICE','COMMISSION 20%','NOTES']);
+    }
+
+    // If action is recalc, just update totals and return
+    if (data.action === 'recalc') {
+      var totals = recalcTotals(sheet);
+      return respond({status:'ok', totalCommission:totals.commission, totalNet:totals.net});
     }
 
     var addedCount = 0, updatedCount = 0;
@@ -519,10 +542,40 @@ function renderSummary() {
 function doPush() {
   var appsUrl = document.getElementById('appsUrl').value.trim();
   var parts   = getUrlParts();
-  var btn     = document.getElementById('pushBtn');
   if (!parts.sheetId || !parts.gid) { showMsg('pushMsg','err','Paste a valid Google Sheet URL with a gid first.'); return; }
   if (!appsUrl)                      { showMsg('pushMsg','err','Enter your Apps Script Web App URL first.'); return; }
   if (!rows.length)                  { return; }
+
+  // Show confirm modal with current snapshotted creator
+  document.getElementById('confirmCreator').value   = rows[0].notes;
+  document.getElementById('confirmRowCount').textContent = rows.length;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').style.display = 'none';
+}
+
+function confirmPush() {
+  var newCreator = document.getElementById('confirmCreator').value.trim();
+  if (!newCreator) { return; }
+
+  // Update all rows with the (possibly edited) creator name
+  for (var i = 0; i < rows.length; i++) { rows[i].notes = newCreator; }
+
+  // Re-render table to reflect any creator change
+  var tbody = document.getElementById('tbody');
+  var trs = tbody.querySelectorAll('tr');
+  for (var j = 0; j < trs.length; j++) {
+    var lastTd = trs[j].querySelector('td:last-child');
+    if (lastTd) lastTd.innerHTML = '<span class="tag">' + newCreator + '</span>';
+  }
+
+  closeConfirm();
+
+  var appsUrl = document.getElementById('appsUrl').value.trim();
+  var parts   = getUrlParts();
+  var btn     = document.getElementById('pushBtn');
 
   btn.disabled  = true;
   btn.innerHTML = '<span class="spin"></span> Pushing...';
