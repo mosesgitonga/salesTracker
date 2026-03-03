@@ -203,6 +203,12 @@ Only amounts ending in .18 are extracted:
     }
     if (!sheet) return respond({status:'error', message:'No tab found with gid '+data.gid});
 
+    // Recalc-only action (no rows to write)
+    if (data.action === 'recalc') {
+      var totals = recalcTotals(sheet);
+      return respond({status:'ok', totalCommission:totals.commission, totalNet:totals.net});
+    }
+
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['DATE','USERNAME','FORM OF PAYMENT','GROSS PRICE','NET PRICE','COMMISSION 20%','NOTES']);
     }
@@ -271,17 +277,19 @@ function recalcTotals(sheet) {
   var lastRow = sheet.getLastRow();
   var totalCommission = 0, totalNet = 0;
   if (lastRow >= 5) {
-    var vals = sheet.getRange(5, 5, lastRow-4, 2).getValues();
+    var vals = sheet.getRange(5, 5, lastRow - 4, 2).getValues();
     for (var i = 0; i &lt; vals.length; i++) {
-      var n = parseFloat(vals[i][0]), c = parseFloat(vals[i][1]);
+      // Values may be numbers or strings like "8.00" — parse both safely
+      var n = parseFloat(String(vals[i][0]).replace('$',''));
+      var c = parseFloat(String(vals[i][1]).replace('$',''));
       if (!isNaN(n)) totalNet        += n;
       if (!isNaN(c)) totalCommission += c;
     }
   }
-  totalCommission = Math.round(totalCommission*100)/100;
-  totalNet        = Math.round(totalNet*100)/100;
-  sheet.getRange(3,8).setValue(totalCommission); // H3
-  sheet.getRange(3,9).setValue(totalNet);         // I3
+  totalCommission = Math.round(totalCommission * 100) / 100;
+  totalNet        = Math.round(totalNet        * 100) / 100;
+  sheet.getRange(3, 8).setValue(totalCommission); // H3 = Total Commission
+  sheet.getRange(3, 9).setValue(totalNet);         // I3 = Total Net
   return {commission: totalCommission, net: totalNet};
 }
 
@@ -334,16 +342,18 @@ function doRecalc() {
 
   btn.disabled  = true;
   btn.innerHTML = '<span class="spin"></span> Recalculating...';
-  var url = appsUrl + '?action=recalc&sheetId=' + encodeURIComponent(parts.sheetId) + '&gid=' + encodeURIComponent(parts.gid);
-
-  fetch(url)
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.status === 'ok') {
-      showMsg('recalcMsg','ok','✓ H3 & I3 updated in sheet.');
-    } else {
-      showMsg('recalcMsg','err','Script error: ' + data.message);
-    }
+  // Use no-cors POST (same as push) since Apps Script blocks CORS on GET
+  fetch(appsUrl, {
+    method: 'POST',
+    mode:   'no-cors',
+    body:   JSON.stringify({
+      action:  'recalc',
+      sheetId: parts.sheetId,
+      gid:     parts.gid
+    })
+  })
+  .then(function() {
+    showMsg('recalcMsg','ok','✓ H3 & I3 totals recalculated and updated in sheet.');
   })
   .catch(function(err) {
     showMsg('recalcMsg','err','Request failed: ' + err.message);
