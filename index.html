@@ -18,11 +18,13 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.5px;background:linear-gradien
 label{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:14px}
 label:first-of-type{margin-top:0}
 input,textarea{width:100%;background:#0a0a12;border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:10px 14px;outline:none;transition:border-color .15s,box-shadow .15s;resize:vertical}
+input[type="date"]{color-scheme:dark}
 input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(185,103,255,.1)}
 textarea{min-height:200px;line-height:1.7}
 .hint{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:580px){.g2{grid-template-columns:1fr}}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:580px){.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr}}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .15s}
 .btn-primary{background:linear-gradient(135deg,var(--accent),#8020ee);color:#fff;box-shadow:0 4px 16px rgba(185,103,255,.3)}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(185,103,255,.42)}
@@ -37,6 +39,7 @@ textarea{min-height:200px;line-height:1.7}
 .a-ok{background:rgba(61,255,170,.07);border:1px solid rgba(61,255,170,.22);color:var(--green)}
 .a-err{background:rgba(255,107,157,.07);border:1px solid rgba(255,107,157,.22);color:var(--pink)}
 .a-inf{background:rgba(185,103,255,.07);border:1px solid rgba(185,103,255,.22);color:var(--accent)}
+.a-warn{background:rgba(255,200,80,.07);border:1px solid rgba(255,200,80,.22);color:#ffc850}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
 .sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;text-align:center}
 .sc .big{font-size:21px;font-weight:800;font-family:'DM Mono',monospace}
@@ -53,6 +56,11 @@ tr:hover td{background:rgba(185,103,255,.03)}
 .cp{color:var(--pink)}
 .tag{background:rgba(185,103,255,.13);color:var(--accent);border-radius:5px;padding:2px 8px;font-size:10px}
 .skip-tag{background:rgba(255,107,157,.1);color:var(--pink);border-radius:5px;padding:2px 7px;font-size:10px}
+.date-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+.date-sep{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.date-filter-clear{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
+.date-filter-clear:hover{color:var(--green)}
+.filter-badge{font-family:'DM Mono',monospace;font-size:10px;background:rgba(185,103,255,.12);color:var(--accent);border:1px solid rgba(185,103,255,.25);border-radius:5px;padding:2px 9px;display:inline-block;margin-top:6px}
 .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
 details{margin-top:10px}
@@ -95,14 +103,26 @@ details[open] summary::before{content:'▼ '}
 
   <!-- Step 2: Creator + raw data -->
   <div class="card">
-    <div class="clabel">Step 2 — Creator & Data</div>
-    <div class="g2">
+    <div class="clabel">Step 2 — Creator, Date Filter & Data</div>
+    <div class="g3">
       <div>
         <label>Creator / Page Name</label>
         <input id="creator" type="text" placeholder="e.g. mila" />
         <div class="hint">Saved in the NOTES column on each row.</div>
       </div>
+      <div>
+        <label>From Date <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+        <input id="dateFrom" type="date" />
+        <div class="hint">Only include purchases on or after this date.</div>
+      </div>
+      <div>
+        <label>To Date <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+        <input id="dateTo" type="date" />
+        <div class="hint">Only include purchases on or before this date.</div>
+      </div>
     </div>
+    <div id="dateFilterInfo"></div>
+
     <label style="margin-top:16px">Paste Raw Notification Data</label>
     <textarea id="raw" placeholder="Paste your raw notification text here.
 
@@ -123,6 +143,7 @@ Only amounts ending in .18 are extracted:
       <div class="clabel">Step 3 — Review & Push</div>
       <div style="font-weight:700;font-size:15px;margin-bottom:14px">
         Rows to push &nbsp;<span id="badge" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);background:rgba(185,103,255,.12);padding:2px 10px;border-radius:5px"></span>
+        <span id="filterBadge"></span>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -229,8 +250,8 @@ var rows = [];
 
 // ── URL parsing ───────────────────────────────────────────────────────────────
 function getUrlParts() {
-  var url     = document.getElementById('sheetUrl').value.trim();
-  var idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  var url      = document.getElementById('sheetUrl').value.trim();
+  var idMatch  = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   var gidMatch = url.match(/[#&?]gid=(\d+)/);
   return {
     sheetId: idMatch  ? idMatch[1]  : null,
@@ -250,17 +271,48 @@ function onUrlInput() {
   }
 }
 
+// ── Date helpers ──────────────────────────────────────────────────────────────
+// Parse a stored date string "DD/MM/YYYY" into a comparable integer YYYYMMDD
+function dateStrToInt(ddmmyyyy) {
+  var parts = ddmmyyyy.split('/');
+  if (parts.length !== 3) return null;
+  return parseInt(parts[2] + parts[1] + parts[0], 10); // YYYYMMDD
+}
+
+// Parse an <input type="date"> value "YYYY-MM-DD" into YYYYMMDD integer
+function inputDateToInt(yyyymmdd) {
+  if (!yyyymmdd) return null;
+  return parseInt(yyyymmdd.replace(/-/g, ''), 10);
+}
+
+function formatInputDate(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  var p = yyyymmdd.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
 // ── Parse ─────────────────────────────────────────────────────────────────────
 function doParse() {
   var raw     = document.getElementById('raw').value.trim();
   var creator = document.getElementById('creator').value.trim();
+  var fromVal = document.getElementById('dateFrom').value;
+  var toVal   = document.getElementById('dateTo').value;
 
   if (!raw)     { showMsg('parseMsg', 'err', 'Paste your notification data first.');  return; }
   if (!creator) { showMsg('parseMsg', 'err', 'Enter the creator / page name first.'); return; }
 
+  var fromInt = inputDateToInt(fromVal);
+  var toInt   = inputDateToInt(toVal);
+
+  if (fromInt && toInt && fromInt > toInt) {
+    showMsg('parseMsg', 'err', '"From" date cannot be after "To" date.');
+    return;
+  }
+
   rows = [];
-  var skipped = [];
-  var lines   = raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var skipped      = [];
+  var skippedDate  = [];
+  var lines        = raw.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
 
   for (var i = 0; i < lines.length; i++) {
     var m = lines[i].match(/has purchased your message for \$([0-9]+\.[0-9]{2})!/);
@@ -277,9 +329,21 @@ function doParse() {
     var gross      = parseFloat(amountStr);
     var net        = Math.round(gross * 0.80 * 100) / 100;
     var commission = Math.round(gross * 0.20 * 100) / 100;
+    var dateStr    = findDate(lines, i);
+    var dateInt    = dateStrToInt(dateStr);
+
+    // Date range filter
+    if (fromInt && dateInt && dateInt < fromInt) {
+      skippedDate.push({ amount: amountStr, user: findUsername(lines, i), date: dateStr, reason: 'before from-date' });
+      continue;
+    }
+    if (toInt && dateInt && dateInt > toInt) {
+      skippedDate.push({ amount: amountStr, user: findUsername(lines, i), date: dateStr, reason: 'after to-date' });
+      continue;
+    }
 
     rows.push({
-      date:       findDate(lines, i),
+      date:       dateStr,
       username:   findUsername(lines, i),
       payment:    'Message purchase',
       gross:      gross,
@@ -290,22 +354,39 @@ function doParse() {
   }
 
   if (!rows.length) {
-    showMsg('parseMsg', 'err',
-      'No .18 purchases found.' +
-      (skipped.length ? ' (' + skipped.length + ' non-.18 purchases skipped)' : '')
-    );
+    var msg = 'No .18 purchases found';
+    if (skippedDate.length) msg += ' within the selected date range (' + skippedDate.length + ' outside range)';
+    if (skipped.length) msg += '. ' + skipped.length + ' non-.18 purchase(s) also skipped';
+    showMsg('parseMsg', 'err', msg + '.');
     return;
   }
 
-  renderTable(skipped);
+  renderTable(skipped, skippedDate);
   renderSummary();
+  renderFilterBadge(fromVal, toVal, skippedDate.length);
   document.getElementById('badge').textContent = rows.length;
   document.getElementById('results').style.display = 'block';
   document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-  showMsg('parseMsg', 'ok',
-    '✓ ' + rows.length + ' qualifying purchase(s) found.' +
-    (skipped.length ? ' ' + skipped.length + ' skipped (non-.18).' : '')
-  );
+
+  var okMsg = '✓ ' + rows.length + ' qualifying purchase(s) found.';
+  if (skippedDate.length) okMsg += ' ' + skippedDate.length + ' outside date range.';
+  if (skipped.length)     okMsg += ' ' + skipped.length + ' non-.18 skipped.';
+  showMsg('parseMsg', 'ok', okMsg);
+}
+
+function renderFilterBadge(fromVal, toVal, skippedCount) {
+  var el = document.getElementById('filterBadge');
+  if (!fromVal && !toVal) { el.innerHTML = ''; return; }
+  var label = '📅 ';
+  if (fromVal && toVal) {
+    label += formatInputDate(fromVal) + ' → ' + formatInputDate(toVal);
+  } else if (fromVal) {
+    label += 'From ' + formatInputDate(fromVal);
+  } else {
+    label += 'Until ' + formatInputDate(toVal);
+  }
+  if (skippedCount) label += ' · ' + skippedCount + ' outside range';
+  el.innerHTML = '&nbsp;<span class="filter-badge">' + label + '</span>';
 }
 
 function findUsername(lines, idx) {
@@ -335,7 +416,7 @@ function findDate(lines, idx) {
 function pad(n) { return String(n).padStart(2, '0'); }
 
 // ── Render ────────────────────────────────────────────────────────────────────
-function renderTable(skipped) {
+function renderTable(skipped, skippedDate) {
   var html = '';
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
@@ -352,16 +433,27 @@ function renderTable(skipped) {
   document.getElementById('tbody').innerHTML = html;
 
   var sk = document.getElementById('skipped');
+  var skHtml = '';
+
+  if (skippedDate && skippedDate.length) {
+    skHtml += '<details><summary>Skipped ' + skippedDate.length + ' purchase(s) outside date range</summary><div class="skip-list">';
+    for (var d = 0; d < skippedDate.length; d++) {
+      skHtml += '<span class="skip-tag" style="background:rgba(255,200,80,.1);color:#ffc850">$' + skippedDate[d].amount + '</span>'
+             + ' &nbsp;<span style="color:var(--muted)">' + skippedDate[d].date + '</span>'
+             + ' &nbsp;' + skippedDate[d].user + '<br>';
+    }
+    skHtml += '</div></details>';
+  }
+
   if (skipped.length) {
-    var skHtml = '<details><summary>Skipped ' + skipped.length + ' non-.18 purchase(s)</summary><div class="skip-list">';
+    skHtml += '<details style="margin-top:6px"><summary>Skipped ' + skipped.length + ' non-.18 purchase(s)</summary><div class="skip-list">';
     for (var k = 0; k < skipped.length; k++) {
       skHtml += '<span class="skip-tag">$' + skipped[k].amount + '</span> &nbsp;' + skipped[k].user + '<br>';
     }
     skHtml += '</div></details>';
-    sk.innerHTML = skHtml;
-  } else {
-    sk.innerHTML = '';
   }
+
+  sk.innerHTML = skHtml;
 }
 
 function renderSummary() {
@@ -402,8 +494,6 @@ function doPush() {
     })
   };
 
-  // Use no-cors fetch — Apps Script handles the write, we assume success
-  // (CORS blocks the response but the POST still executes server-side)
   fetch(appsUrl, {
     method:  'POST',
     mode:    'no-cors',
@@ -435,15 +525,18 @@ function doCopyTSV() {
 
 // ── Clear ─────────────────────────────────────────────────────────────────────
 function doClear() {
-  document.getElementById('raw').value        = '';
-  document.getElementById('parseMsg').innerHTML = '';
+  document.getElementById('raw').value             = '';
+  document.getElementById('dateFrom').value        = '';
+  document.getElementById('dateTo').value          = '';
+  document.getElementById('parseMsg').innerHTML    = '';
+  document.getElementById('dateFilterInfo').innerHTML = '';
   document.getElementById('results').style.display = 'none';
   rows = [];
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
 function showMsg(id, type, text) {
-  var cls = { ok: 'a-ok', err: 'a-err', inf: 'a-inf' };
+  var cls = { ok: 'a-ok', err: 'a-err', inf: 'a-inf', warn: 'a-warn' };
   document.getElementById(id).innerHTML = '<div class="alert ' + cls[type] + '">' + text + '</div>';
 }
 
