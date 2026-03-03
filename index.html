@@ -105,18 +105,6 @@ details[open] summary::before{content:'▼ '}
       <button class="btn btn-recalc" id="recalcBtn" onclick="doRecalc()">🔄 Recalculate Totals</button>
     </div>
     <div id="recalcMsg"></div>
-    <div id="recalcDisplay" style="display:none">
-      <div class="totals-display">
-        <div class="td-box">
-          <div class="big cg" id="recalcNet">—</div>
-          <div class="lbl">Total Net · Sheet I3</div>
-        </div>
-        <div class="td-box">
-          <div class="big cp" id="recalcComm">—</div>
-          <div class="lbl">Total Commission · Sheet H3</div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Step 2 -->
@@ -354,12 +342,7 @@ function doRecalc() {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.status === 'ok') {
-      var net  = parseFloat(String(data.totalNet).replace('$','').trim());
-      var comm = parseFloat(String(data.totalCommission).replace('$','').trim());
-      document.getElementById('recalcNet').textContent  = '$' + (isNaN(net)  ? '0.00' : net.toFixed(2));
-      document.getElementById('recalcComm').textContent = '$' + (isNaN(comm) ? '0.00' : comm.toFixed(2));
-      document.getElementById('recalcDisplay').style.display = 'block';
-      showMsg('recalcMsg','ok','✓ Totals recalculated from sheet and H3/I3 updated.');
+      showMsg('recalcMsg','ok','✓ H3 & I3 updated in sheet.');
     } else {
       showMsg('recalcMsg','err','Script error: ' + data.message);
     }
