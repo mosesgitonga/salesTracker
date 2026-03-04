@@ -587,12 +587,11 @@ function doParseTips() {
 
     // Find tipper: scan backwards from the "paid you a tip" line
     // Strategy:
-    //   1. Find the closest @handle (non-numeric) — that is the tipper's handle
-    //   2. The line immediately above that @handle is the tipper's display name
-    //   3. If the handle is @u<digits> (system), look further back for a
-    //      label line like "Pending video call(Grey400)" right before it
+    //   1. Real @handle (not @u<digits>) → use display name above it
+    //   2. @u<digits> handle → use label with (...) above it if present,
+    //      otherwise use the plain name above it (e.g. "Jacquin"),
+    //      otherwise fall back to the @u handle itself
     var tipper = 'Unknown';
-    // System/UI lines to ignore when looking for a name
     var sysRe = /^(Recent|Add to|favorites|responded|paid you|pending|PENDING|Add tip|report|block|mute|hide)/i;
 
     for (var j = i-1; j >= Math.max(0,i-12); j--) {
@@ -602,21 +601,27 @@ function doParseTips() {
       if (/^@(?!u\d+)/.test(ln)) {
         var above = j > 0 ? lines[j-1] : '';
         if (above && !sysRe.test(above) && above.length > 0) {
-          tipper = above;   // e.g. "Kody Kidd"
+          tipper = above;
         } else {
-          tipper = ln;       // fallback to the handle itself
+          tipper = ln;
         }
         break;
       }
 
-      // @u<digits> system handle → the line before IT may be a label like "Pending video call(Grey400)"
+      // @u<digits> system handle
       if (/^@u\d+$/.test(ln)) {
         var prev = j > 0 ? lines[j-1] : '';
         if (prev && /\(.+\)/.test(prev) && !sysRe.test(prev)) {
-          tipper = prev;   // e.g. "Pending video call(Grey400)"
-          break;
+          // Label like "Pending video call(Grey400)"
+          tipper = prev;
+        } else if (prev && !sysRe.test(prev) && prev.length > 0) {
+          // Plain display name like "Jacquin"
+          tipper = prev;
+        } else {
+          // Last resort: use the @u handle itself
+          tipper = ln;
         }
-        // otherwise keep scanning further back
+        break;
       }
     }
 
