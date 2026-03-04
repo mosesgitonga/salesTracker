@@ -585,25 +585,38 @@ function doParseTips() {
     var net    = Math.round(gross * 0.80 * 100) / 100;
     var comm   = Math.round(gross * 0.20 * 100) / 100;
 
-    // Find tipper: scan backwards
-    // Priority: a line matching "Something(SomethingElse)" pattern (e.g. "Pending video call(Grey400)")
-    // before hitting @u.... handle; else use @handle; else plain name
+    // Find tipper: scan backwards from the "paid you a tip" line
+    // Strategy:
+    //   1. Find the closest @handle (non-numeric) — that is the tipper's handle
+    //   2. The line immediately above that @handle is the tipper's display name
+    //   3. If the handle is @u<digits> (system), look further back for a
+    //      label line like "Pending video call(Grey400)" right before it
     var tipper = 'Unknown';
-    for (var j = i-1; j >= Math.max(0,i-10); j--) {
+    // System/UI lines to ignore when looking for a name
+    var sysRe = /^(Recent|Add to|favorites|responded|paid you|pending|PENDING|Add tip|report|block|mute|hide)/i;
+
+    for (var j = i-1; j >= Math.max(0,i-12); j--) {
       var ln = lines[j];
-      // Named action line like "Pending video call(Grey400)"
-      if (/\(.+\)/.test(ln) && !/^@u\d+$/.test(ln) && !/paid you|responded|Add to|favorites/.test(ln)) {
-        tipper = ln; break;
-      }
-      // @handle (not @u numeric)
-      if (/^@(?!u\d+$)/.test(ln)) { tipper = ln; break; }
-      // @u numeric handle — use the line BEFORE it if it looks like a label
-      if (/^@u\d+$/.test(ln)) {
-        var prev = lines[j-1];
-        if (prev && /\(.+\)/.test(prev) && !/paid you|responded|Add to|favorites/.test(prev)) {
-          tipper = prev; break;
+
+      // Real @handle (not @u<digits>) → name is the line directly above it
+      if (/^@(?!u\d+)/.test(ln)) {
+        var above = j > 0 ? lines[j-1] : '';
+        if (above && !sysRe.test(above) && above.length > 0) {
+          tipper = above;   // e.g. "Kody Kidd"
+        } else {
+          tipper = ln;       // fallback to the handle itself
         }
-        // fall through — keep looking
+        break;
+      }
+
+      // @u<digits> system handle → the line before IT may be a label like "Pending video call(Grey400)"
+      if (/^@u\d+$/.test(ln)) {
+        var prev = j > 0 ? lines[j-1] : '';
+        if (prev && /\(.+\)/.test(prev) && !sysRe.test(prev)) {
+          tipper = prev;   // e.g. "Pending video call(Grey400)"
+          break;
+        }
+        // otherwise keep scanning further back
       }
     }
 
