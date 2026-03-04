@@ -143,11 +143,11 @@ details[open] summary::before{content:'▼ '}
         <div id="codeParsed"></div>
       </div>
       <div>
-        <label>From Date <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+        <label>From Date <span style="color:var(--pink);font-size:9px">(required)</span></label>
         <input id="dateFrom" type="date" />
       </div>
       <div>
-        <label>To Date <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+        <label>To Date <span style="color:var(--pink);font-size:9px">(required)</span></label>
         <input id="dateTo" type="date" />
       </div>
     </div>
@@ -162,21 +162,26 @@ details[open] summary::before{content:'▼ '}
 
   <!-- Step 2: TIPS mode -->
   <div id="tipsStep2" class="card" style="display:none">
-    <div class="clabel-gold">Step 2 — Tips Data</div>
-    <div class="g2">
+    <div class="clabel-gold">Step 2 — Creator & Tips Data</div>
+    <div class="g3">
       <div>
-        <label>Inflow Name</label>
-        <input id="inflowName" type="text" placeholder="e.g. SPH - Ivan" />
-        <div class="hint">The inflow label shown in the notification header.</div>
+        <label>Creator / Page Name</label>
+        <input id="tipsCreator" type="text" placeholder="e.g. mila" />
+        <div class="hint">Saved in NOTES column. Snapshotted at parse time.</div>
       </div>
       <div>
-        <label>Responder Name</label>
-        <input id="responderName" type="text" placeholder="e.g. kimmy" />
-        <div class="hint">The person who responded to the notification.</div>
+        <label>From Date <span style="color:var(--muted);font-size:9px">(required)</span></label>
+        <input id="tipsDateFrom" type="date" />
+        <div class="hint">Only extract tips on or after this date.</div>
+      </div>
+      <div>
+        <label>To Date <span style="color:var(--muted);font-size:9px">(required)</span></label>
+        <input id="tipsDateTo" type="date" />
+        <div class="hint">Only extract tips on or before this date.</div>
       </div>
     </div>
-    <label style="margin-top:16px">Paste Tip Notification</label>
-    <textarea id="rawTips" placeholder="Paste one tip notification at a time.&#10;&#10;Example:&#10;SPH -(Ivan)&#10;@ivanywhere&#10;paid you a tip of $5.00&#10;Mar. 1, 2026 at 10:16 AM&#10;kimmy&#10;responded to the notification"></textarea>
+    <label style="margin-top:16px">Paste Tip Notifications</label>
+    <textarea id="rawTips" placeholder="Paste tip notifications here.&#10;&#10;Example:&#10;SPH -(Ivan)&#10;@ivanywhere&#10;paid you a tip of $5.00&#10;Mar. 1, 2026 at 10:16 AM&#10;kimmy&#10;responded to the notification"></textarea>
     <div class="btns">
       <button class="btn btn-gold" onclick="doParseTips()">⚡ Parse Tips</button>
       <button class="btn btn-ghost" onclick="doClearTips()">Clear</button>
@@ -214,7 +219,7 @@ details[open] summary::before{content:'▼ '}
 
   <!-- Step 3: TIPS results -->
   <div id="tipsResults" style="display:none">
-    <div class="summary-2" id="tipsSummary"></div>
+    <div class="summary" id="tipsSummary"></div>
     <div class="card">
       <div class="clabel-gold">Step 3 — Review Tips & Push</div>
       <div style="font-weight:700;font-size:15px;margin-bottom:14px">
@@ -223,11 +228,12 @@ details[open] summary::before{content:'▼ '}
       <div class="tbl-wrap">
         <table>
           <thead class="gold-head"><tr>
-            <th>Date</th><th>Tipper</th><th>Amount</th><th>Inflow</th><th>Responder</th>
+            <th>Date</th><th>Username</th><th>Form of Payment</th><th>Gross</th><th>Net</th><th>Commission 20%</th><th>Total Commission</th><th>Notes</th>
           </tr></thead>
           <tbody id="tipsTbody"></tbody>
         </table>
       </div>
+      <div id="tipsSkipped"></div>
       <div class="btns">
         <button class="btn btn-green" id="tipsPushBtn" onclick="doPushTips()">📤 Push Tips to Google Sheets</button>
         <button class="btn btn-ghost" onclick="doCopyTipsTSV()">📋 Copy for Sheets</button>
@@ -423,10 +429,12 @@ function doParse() {
   if (!raw)     { showMsg('parseMsg','err','Paste your notification data first.'); return; }
   if (!creator) { showMsg('parseMsg','err','Enter the creator / page name first.'); return; }
   if (!code)    { showMsg('parseMsg','err','Enter a valid sales code (e.g. 18 or .18).'); return; }
+  if (!fromVal) { showMsg('parseMsg','err','From date is required.'); return; }
+  if (!toVal)   { showMsg('parseMsg','err','To date is required.'); return; }
 
   var fromInt = inputDateToInt(fromVal);
   var toInt   = inputDateToInt(toVal);
-  if (fromInt && toInt && fromInt > toInt) { showMsg('parseMsg','err','"From" date cannot be after "To" date.'); return; }
+  if (fromInt > toInt) { showMsg('parseMsg','err','"From" date cannot be after "To" date.'); return; }
 
   rows = [];
   var skipped = [], skippedDate = [];
@@ -550,38 +558,58 @@ function renderSummary() {
 // ── TIPS: Parse ───────────────────────────────────────────────────────────────
 function doParseTips() {
   var raw       = document.getElementById('rawTips').value.trim();
-  var inflow    = document.getElementById('inflowName').value.trim();
-  var responder = document.getElementById('responderName').value.trim();
+  var creator   = document.getElementById('tipsCreator').value.trim();
+  var fromVal   = document.getElementById('tipsDateFrom').value;
+  var toVal     = document.getElementById('tipsDateTo').value;
 
-  if (!raw)       { showMsg('tipsParseMsg','err','Paste tip notification data first.'); return; }
-  if (!inflow)    { showMsg('tipsParseMsg','err','Enter the Inflow Name first.'); return; }
-  if (!responder) { showMsg('tipsParseMsg','err','Enter the Responder Name first.'); return; }
+  if (!raw)     { showMsg('tipsParseMsg','err','Paste tip notification data first.'); return; }
+  if (!creator) { showMsg('tipsParseMsg','err','Enter the creator / page name first.'); return; }
+  if (!fromVal) { showMsg('tipsParseMsg','err','From date is required.'); return; }
+  if (!toVal)   { showMsg('tipsParseMsg','err','To date is required.'); return; }
+
+  var fromInt = inputDateToInt(fromVal);
+  var toInt   = inputDateToInt(toVal);
+  if (fromInt > toInt) { showMsg('tipsParseMsg','err','"From" date cannot be after "To" date.'); return; }
 
   tipsRows = [];
-  var lines = raw.split('\n').map(function(l){return l.trim();}).filter(Boolean);
-  var months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  var skippedDate = [];
+  var lines   = raw.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var months  = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
 
-  // Each tip block: "paid you a tip of $X.XX"
   for (var i = 0; i < lines.length; i++) {
     var m = lines[i].match(/paid you a tip of \$([0-9]+\.[0-9]{2})/);
     if (!m) continue;
 
     var amount = parseFloat(m[1]);
+    var gross  = amount;
+    var net    = Math.round(gross * 0.80 * 100) / 100;
+    var comm   = Math.round(gross * 0.20 * 100) / 100;
 
-    // Find tipper: look backwards for a non-@u handle line
+    // Find tipper: scan backwards
+    // Priority: a line matching "Something(SomethingElse)" pattern (e.g. "Pending video call(Grey400)")
+    // before hitting @u.... handle; else use @handle; else plain name
     var tipper = 'Unknown';
-    for (var j = i-1; j >= Math.max(0,i-6); j--) {
-      var l = lines[j];
-      if (/^@/.test(l)) { tipper = l; break; }
-      // If it's a plain name line (not a system line), use it
-      if (!/paid you|responded|pending|PENDING|Add to|favorites/.test(l) && l.length > 0 && !/^\$/.test(l)) {
-        tipper = l; break;
+    for (var j = i-1; j >= Math.max(0,i-10); j--) {
+      var ln = lines[j];
+      // Named action line like "Pending video call(Grey400)"
+      if (/\(.+\)/.test(ln) && !/^@u\d+$/.test(ln) && !/paid you|responded|Add to|favorites/.test(ln)) {
+        tipper = ln; break;
+      }
+      // @handle (not @u numeric)
+      if (/^@(?!u\d+$)/.test(ln)) { tipper = ln; break; }
+      // @u numeric handle — use the line BEFORE it if it looks like a label
+      if (/^@u\d+$/.test(ln)) {
+        var prev = lines[j-1];
+        if (prev && /\(.+\)/.test(prev) && !/paid you|responded|Add to|favorites/.test(prev)) {
+          tipper = prev; break;
+        }
+        // fall through — keep looking
       }
     }
 
-    // Find date: look forward
+    // Find date: scan forward up to 5 lines
     var dateStr = '';
-    for (var k = i+1; k < Math.min(lines.length,i+5); k++) {
+    for (var k = i+1; k < Math.min(lines.length,i+6); k++) {
       var dm = lines[k].match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2}),\s+(\d{4})/);
       if (dm) { dateStr = pad(dm[2]) + '/' + pad(months[dm[1]]) + '/' + dm[3]; break; }
     }
@@ -590,46 +618,78 @@ function doParseTips() {
       dateStr = pad(t.getDate()) + '/' + pad(t.getMonth()+1) + '/' + t.getFullYear();
     }
 
+    // Date range filter
+    var dateInt = dateStrToInt(dateStr);
+    if (dateInt < fromInt || dateInt > toInt) {
+      skippedDate.push({amount: amount, tipper: tipper, date: dateStr});
+      continue;
+    }
+
     tipsRows.push({
-      date:      dateStr,
-      tipper:    tipper,
-      amount:    amount,
-      inflow:    inflow,
-      responder: responder
+      date:       dateStr,
+      tipper:     tipper,
+      gross:      gross,
+      net:        net,
+      commission: comm,
+      notes:      creator
     });
   }
 
-  if (!tipsRows.length) { showMsg('tipsParseMsg','err','No tip amounts found in the pasted text.'); return; }
+  if (!tipsRows.length) {
+    var msg = 'No tips found';
+    if (skippedDate.length) msg += ' within the date range (' + skippedDate.length + ' outside)';
+    showMsg('tipsParseMsg','err', msg + '.'); return;
+  }
 
-  renderTipsTable();
+  renderTipsTable(skippedDate);
   renderTipsSummary();
   document.getElementById('tipsBadge').textContent = tipsRows.length;
   document.getElementById('tipsResults').style.display = 'block';
   document.getElementById('tipsResults').scrollIntoView({behavior:'smooth'});
-  showMsg('tipsParseMsg','ok','✓ ' + tipsRows.length + ' tip(s) parsed.');
+  var ok = '✓ ' + tipsRows.length + ' tip(s) parsed.';
+  if (skippedDate.length) ok += ' ' + skippedDate.length + ' outside date range.';
+  showMsg('tipsParseMsg','ok', ok);
 }
 
-function renderTipsTable() {
-  var html = '';
+function renderTipsTable(skippedDate) {
+  var running = 0, html = '';
   for (var i = 0; i < tipsRows.length; i++) {
     var r = tipsRows[i];
+    running = Math.round((running + r.commission) * 100) / 100;
     html += '<tr>' +
       '<td>' + r.date + '</td>' +
       '<td class="cw">' + r.tipper + '</td>' +
-      '<td class="cg">$' + r.amount.toFixed(2) + '</td>' +
-      '<td><span class="tag-gold">' + r.inflow + '</span></td>' +
-      '<td><span class="tag">' + r.responder + '</span></td>' +
+      '<td>Paid a tip</td>' +
+      '<td class="cg">$' + r.gross.toFixed(2) + '</td>' +
+      '<td>$' + r.net.toFixed(2) + '</td>' +
+      '<td class="cp">$' + r.commission.toFixed(2) + '</td>' +
+      '<td class="cv">$' + running.toFixed(2) + '</td>' +
+      '<td><span class="tag">' + r.notes + '</span></td>' +
       '</tr>';
   }
   document.getElementById('tipsTbody').innerHTML = html;
+
+  // Show skipped outside date range
+  var sk = '';
+  if (skippedDate && skippedDate.length) {
+    sk += '<details style="margin-top:10px"><summary>Skipped ' + skippedDate.length + ' tip(s) outside date range</summary><div class="skip-list">';
+    for (var d = 0; d < skippedDate.length; d++) {
+      sk += '<span class="skip-tag" style="background:rgba(255,200,80,.1);color:#ffc850">$' + skippedDate[d].amount.toFixed(2) + '</span> &nbsp;<span style="color:var(--muted)">' + skippedDate[d].date + '</span> &nbsp;' + skippedDate[d].tipper + '<br>';
+    }
+    sk += '</div></details>';
+  }
+  // reuse skipped element or create one below tips table
+  var skEl = document.getElementById('tipsSkipped');
+  if (skEl) skEl.innerHTML = sk;
 }
 
 function renderTipsSummary() {
-  var total = 0;
-  for (var i=0;i<tipsRows.length;i++) total += tipsRows[i].amount;
+  var tg=0, tn=0, tc=0;
+  for (var i=0;i<tipsRows.length;i++){tg+=tipsRows[i].gross;tn+=tipsRows[i].net;tc+=tipsRows[i].commission;}
   document.getElementById('tipsSummary').innerHTML =
-    '<div class="sc"><div class="big cw">$'+total.toFixed(2)+'</div><div class="lbl">Total Tips</div></div>' +
-    '<div class="sc"><div class="big cg">'+tipsRows.length+'</div><div class="lbl">Tip Count</div></div>';
+    '<div class="sc"><div class="big cw">$'+tg.toFixed(2)+'</div><div class="lbl">Total Tips Gross</div></div>' +
+    '<div class="sc"><div class="big cg">$'+tn.toFixed(2)+'</div><div class="lbl">Total Net</div></div>' +
+    '<div class="sc"><div class="big cp">$'+tc.toFixed(2)+'</div><div class="lbl">Total Commission</div></div>';
 }
 
 // ── TIPS: Push ────────────────────────────────────────────────────────────────
@@ -650,11 +710,11 @@ function doPushTips() {
       return {
         date:       r.date,
         username:   r.tipper,
-        payment:    'Tip',
-        gross:      r.amount.toFixed(2),
-        net:        r.amount.toFixed(2),
-        commission: '0.00',
-        notes:      r.inflow + ' · ' + r.responder
+        payment:    'Paid a tip',
+        gross:      r.gross.toFixed(2),
+        net:        r.net.toFixed(2),
+        commission: r.commission.toFixed(2),
+        notes:      r.notes
       };
     })
   };
@@ -668,10 +728,12 @@ function doPushTips() {
 }
 
 function doCopyTipsTSV() {
-  var lines = [['DATE','TIPPER','AMOUNT','INFLOW','RESPONDER'].join('\t')];
+  var lines = [['DATE','USERNAME','FORM OF PAYMENT','GROSS','NET','COMMISSION 20%','TOTAL COMMISSION','NOTES'].join('\t')];
+  var running = 0;
   for (var i=0;i<tipsRows.length;i++) {
     var r = tipsRows[i];
-    lines.push([r.date, r.tipper, r.amount.toFixed(2), r.inflow, r.responder].join('\t'));
+    running = Math.round((running + r.commission) * 100) / 100;
+    lines.push([r.date, r.tipper, 'Paid a tip', r.gross.toFixed(2), r.net.toFixed(2), r.commission.toFixed(2), running.toFixed(2), r.notes].join('\t'));
   }
   navigator.clipboard.writeText(lines.join('\n')).then(function() {
     showMsg('tipsPushMsg','ok','✓ Copied! Open Google Sheets and press Ctrl+V / Cmd+V.');
@@ -680,6 +742,8 @@ function doCopyTipsTSV() {
 
 function doClearTips() {
   document.getElementById('rawTips').value             = '';
+  document.getElementById('tipsDateFrom').value        = '';
+  document.getElementById('tipsDateTo').value          = '';
   document.getElementById('tipsParseMsg').innerHTML    = '';
   document.getElementById('tipsResults').style.display = 'none';
   tipsRows = [];
