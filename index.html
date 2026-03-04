@@ -709,13 +709,22 @@ function renderTipsSummary() {
 function doPushTips() {
   var appsUrl = document.getElementById('appsUrl').value.trim();
   var parts   = getUrlParts();
-  var btn     = document.getElementById('tipsPushBtn');
   if (!parts.sheetId || !parts.gid) { showMsg('tipsPushMsg','err','Paste a valid Google Sheet URL with a gid first.'); return; }
   if (!appsUrl)                      { showMsg('tipsPushMsg','err','Enter your Apps Script Web App URL first.'); return; }
   if (!tipsRows.length)              { return; }
 
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spin"></span> Pushing...';
+  // Show confirm modal
+  document.getElementById('confirmCreator').value        = tipsRows[0].notes;
+  document.getElementById('confirmRowCount').textContent = tipsRows.length + ' tip(s)';
+  document.getElementById('confirmModal').dataset.mode   = 'tips';
+  document.getElementById('confirmModal').style.display  = 'flex';
+}
+
+function executeTipsPush(creator) {
+  var appsUrl = document.getElementById('appsUrl').value.trim();
+  var parts   = getUrlParts();
+  var btn     = document.getElementById('tipsPushBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Pushing...';
 
   var payload = {
     sheetId: parts.sheetId, gid: parts.gid,
@@ -727,7 +736,7 @@ function doPushTips() {
         gross:      r.gross.toFixed(2),
         net:        r.net.toFixed(2),
         commission: r.commission.toFixed(2),
-        notes:      r.notes
+        notes:      creator
       };
     })
   };
@@ -754,11 +763,10 @@ function doCopyTipsTSV() {
 }
 
 function doClearTips() {
-  document.getElementById('rawTips').value             = '';
-  document.getElementById('tipsDateFrom').value        = '';
-  document.getElementById('tipsDateTo').value          = '';
-  document.getElementById('tipsParseMsg').innerHTML    = '';
-  document.getElementById('tipsResults').style.display = 'none';
+  document.getElementById('rawTips').value              = '';
+  document.getElementById('tipsCreator').value          = '';
+  document.getElementById('tipsParseMsg').innerHTML     = '';
+  document.getElementById('tipsResults').style.display  = 'none';
   tipsRows = [];
 }
 
@@ -770,7 +778,8 @@ function doPush() {
   if (!appsUrl)                      { showMsg('pushMsg','err','Enter your Apps Script Web App URL first.'); return; }
   if (!rows.length)                  { return; }
   document.getElementById('confirmCreator').value          = rows[0].notes;
-  document.getElementById('confirmRowCount').textContent   = rows.length;
+  document.getElementById('confirmRowCount').textContent   = rows.length + ' row(s)';
+  document.getElementById('confirmModal').dataset.mode     = 'sales';
   document.getElementById('confirmModal').style.display    = 'flex';
 }
 
@@ -779,14 +788,32 @@ function closeConfirm() { document.getElementById('confirmModal').style.display 
 function confirmPush() {
   var newCreator = document.getElementById('confirmCreator').value.trim();
   if (!newCreator) return;
-  for (var i=0;i<rows.length;i++) rows[i].notes = newCreator;
-  var trs = document.getElementById('tbody').querySelectorAll('tr');
-  for (var j=0;j<trs.length;j++) {
-    var last = trs[j].querySelector('td:last-child');
-    if (last) last.innerHTML = '<span class="tag">'+newCreator+'</span>';
-  }
+  var mode = document.getElementById('confirmModal').dataset.mode;
   closeConfirm();
 
+  if (mode === 'tips') {
+    // Update tips rows notes
+    for (var i=0;i<tipsRows.length;i++) tipsRows[i].notes = newCreator;
+    // Update tips table last col
+    var tipsTrs = document.getElementById('tipsTbody').querySelectorAll('tr');
+    for (var j=0;j<tipsTrs.length;j++) {
+      var last = tipsTrs[j].querySelector('td:last-child');
+      if (last) last.innerHTML = '<span class="tag">'+newCreator+'</span>';
+    }
+    executeTipsPush(newCreator);
+  } else {
+    // Sales mode
+    for (var i=0;i<rows.length;i++) rows[i].notes = newCreator;
+    var trs = document.getElementById('tbody').querySelectorAll('tr');
+    for (var j=0;j<trs.length;j++) {
+      var last = trs[j].querySelector('td:last-child');
+      if (last) last.innerHTML = '<span class="tag">'+newCreator+'</span>';
+    }
+    executeSalesPush(newCreator);
+  }
+}
+
+function executeSalesPush(creator) {
   var appsUrl = document.getElementById('appsUrl').value.trim();
   var parts   = getUrlParts();
   var btn     = document.getElementById('pushBtn');
@@ -797,7 +824,7 @@ function confirmPush() {
     rows: rows.map(function(r){
       return {date:r.date,username:r.username,payment:r.payment,
               gross:r.gross.toFixed(2),net:r.net.toFixed(2),
-              commission:r.commission.toFixed(2),notes:r.notes};
+              commission:r.commission.toFixed(2),notes:creator};
     })
   };
 
@@ -818,12 +845,11 @@ function doCopyTSV() {
 }
 
 function doClear() {
-  document.getElementById('raw').value='';
-  document.getElementById('dateFrom').value='';
-  document.getElementById('dateTo').value='';
-  document.getElementById('parseMsg').innerHTML='';
-  document.getElementById('results').style.display='none';
-  rows=[];
+  document.getElementById('raw').value                  = '';
+  document.getElementById('creator').value              = '';
+  document.getElementById('parseMsg').innerHTML         = '';
+  document.getElementById('results').style.display      = 'none';
+  rows = [];
 }
 
 // ── Recalc ────────────────────────────────────────────────────────────────────
